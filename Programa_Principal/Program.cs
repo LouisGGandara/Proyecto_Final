@@ -11,12 +11,15 @@ class Student // clase principal
     private DateOnly endPeriod;
     private string currentLevel;
     private double lessonCount;
+    private bool hasHomework;
+    private bool homeworkSent;
     private bool reviewPending;
     private bool reviewReceived;
     private bool evaluationPending;
     private bool evaluationTaken;
-    private Dictionary<long, double> evaluationResults;
+    private Dictionary<DateOnly, double> evaluationResults;
     private double evaluationAverage;
+    private Dictionary<long, string> learningHistory;
 
     public string Name
     {
@@ -66,6 +69,17 @@ class Student // clase principal
         set { lessonCount = value; }
     }
 
+    public bool HasHomework
+    {
+        get { return hasHomework; }
+        set {  hasHomework = value; }
+    }
+
+    public bool HomeworkSent
+    {
+        get { return homeworkSent; }
+        set {  homeworkSent = value; }
+    }
     public bool ReviewPending
     {
         get { return reviewPending; }
@@ -91,15 +105,21 @@ class Student // clase principal
         set { evaluationTaken = value; }
     }
 
-    public Dictionary<long, double> EvaluationResults { 
+    public Dictionary<DateOnly, double> EvaluationResults { 
         get { return evaluationResults; } 
         set { evaluationResults = value; }
     }
 
     public double EvaluationAverage
     {
-        get { return EvaluationAverage; }
-        set {  EvaluationAverage = value; }
+        get { return evaluationAverage; }
+        set {  evaluationAverage = value; }
+    }
+
+    public Dictionary<long, string> LearningHistory 
+    { 
+        get { return learningHistory; }  
+        set { learningHistory = value; } 
     }
 
     // TODO: Add relevant functions
@@ -109,6 +129,15 @@ class Program
 {
     static void Main()
     {
+        DatabaseHelper.Initialize(); // Added the database here. Tuve que agregar un archivo tipo class que es el dbhelper para poder inicializar la base de datos. 
+        
+        bool hasBeenUpdated = false;
+        Dictionary<long, Student> StudentList = new Dictionary<long, Student>();
 
+        Console.WriteLine("Who had class today?");
+
+        Console.WriteLine("MENU");
+        Console.WriteLine("Agregar estudiante (1)");
+        Console.WriteLine("");
     }
 }
