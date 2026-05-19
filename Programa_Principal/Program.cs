@@ -1,7 +1,7 @@
 ﻿
 using System.Runtime.CompilerServices;
 
-class Student // clase principal
+public class Student // clase principal
 {
     private string name;
     private long id;
