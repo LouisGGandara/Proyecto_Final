@@ -116,4 +116,67 @@ public static class DatabaseHelper
         }
     }
 
+    public static Student? GetStudent(long id)
+    {
+        using var connection = new SqliteConnection(ConnectionString);
+        connection.Open();
+
+        // Esto trae el recod principal del estudiante
+        var command = connection.CreateCommand();
+        command.CommandText = "SELECT * FROM Students WHERE Id = $id;";
+        command.Parameters.AddWithValue("$id", id);
+
+        using var reader = command.ExecuteReader();
+        if (!reader.Read()) return null;
+
+        var student = new Student();
+        student.Id = reader.GetInt64(reader.GetOrdinal("Id"));
+        student.Name = reader.GetString(reader.GetOrdinal("Name"));
+        student.CurrentGoal = reader.GetString(reader.GetOrdinal("CurrentGoal"));
+        student.StartDate = DateOnly.Parse(reader.GetString(reader.GetOrdinal("StartDate")));
+        student.BeginPeriod = DateOnly.Parse(reader.GetString(reader.GetOrdinal("BeginPeriod")));
+        student.EndPeriod = DateOnly.Parse(reader.GetString(reader.GetOrdinal("EndPeriod")));
+        student.CurrentLevel = reader.GetString(reader.GetOrdinal("CurrentLevel"));
+        student.LessonCount = reader.GetDouble(reader.GetOrdinal("LessonCount"));
+        student.HasHomework = reader.GetInt32(reader.GetOrdinal("HasHomework")) == 1;
+        student.HomeworkSent = reader.GetInt32(reader.GetOrdinal("HomeworkSent")) == 1;
+        student.ReviewPending = reader.GetInt32(reader.GetOrdinal("ReviewPending")) == 1;
+        student.ReviewReceived = reader.GetInt32(reader.GetOrdinal("ReviewReceived")) == 1;
+        student.EvaluationPending = reader.GetInt32(reader.GetOrdinal("EvaluationPending")) == 1;
+        student.EvaluationTaken = reader.GetInt32(reader.GetOrdinal("EvaluationTaken")) == 1;
+        student.EvaluationAverage = reader.GetDouble(reader.GetOrdinal("EvaluationAverage"));
+
+
+        // Esto trae los resultados de las evaluaciones
+        var evalCmd = connection.CreateCommand();
+        evalCmd.CommandText = "SELECT * FROM EvaluationResults WHERE StudentId = $id;";
+        evalCmd.Parameters.AddWithValue("$id", id);
+
+        student.EvaluationResults = new Dictionary<DateOnly, double>();
+        using var evalReader = evalCmd.ExecuteReader();
+        while (evalReader.Read())
+        {
+            var date = DateOnly.Parse(evalReader.GetString(evalReader.GetOrdinal("EvaluationDate")));
+            var score = evalReader.GetDouble(evalReader.GetOrdinal("Score"));
+            student.EvaluationResults[date] = score;
+        }
+
+        // Esto trae la historia del aprendizaje
+        var histCmd = connection.CreateCommand();
+        histCmd.CommandText = "SELECT * FROM LearningHistory WHERE StudentId = $id;";
+        histCmd.Parameters.AddWithValue("$id", id);
+
+        student.LearningHistory = new Dictionary<long, string>();
+        using var histReader = histCmd.ExecuteReader();
+        while (histReader.Read())
+        {
+            var entryId = histReader.GetInt64(histReader.GetOrdinal("EntryId"));
+            var desc = histReader.GetString(histReader.GetOrdinal("Description"));
+            student.LearningHistory[entryId] = desc;
+        }
+
+        return student;
+
+    }
+
 }
