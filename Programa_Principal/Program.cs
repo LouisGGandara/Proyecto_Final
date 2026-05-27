@@ -130,14 +130,88 @@ class Program
     static void Main()
     {
         DatabaseHelper.Initialize(); // Added the database here. Tuve que agregar un archivo tipo class que es el dbhelper para poder inicializar la base de datos. 
-        
-        bool hasBeenUpdated = false;
-        Dictionary<long, Student> StudentList = new Dictionary<long, Student>();
 
-        Console.WriteLine("Who had class today?");
+        bool running = true;
+        while (running)
+        {
+            Console.Clear();
+            Console.WriteLine("=== MENU ===");
+            Console.WriteLine("1. Add student");
+            Console.WriteLine("2. Look up student by ID");
+            Console.WriteLine("3. List all students");
+            Console.WriteLine("0. Salir");
+            Console.Write("\nOpción: ");
 
-        Console.WriteLine("MENU");
-        Console.WriteLine("Agregar estudiante (1)");
-        Console.WriteLine("");
+            switch (Console.ReadLine())
+            {
+                case "1":
+                    var s = new Student();
+
+                    Console.Write("Name: ");
+                    s.Name = Console.ReadLine() ?? "";
+
+                    Console.Write("ID: ");
+                    s.Id = long.Parse(Console.ReadLine() ?? "0");
+
+                    Console.Write("Current Objective: ");
+                    s.CurrentGoal = Console.ReadLine() ?? "";
+
+                    Console.Write("Current level: ");
+                    s.CurrentLevel = Console.ReadLine() ?? "";
+
+                    s.StartDate = DateOnly.FromDateTime(DateTime.Now);
+                    s.BeginPeriod = DateOnly.FromDateTime(DateTime.Now);
+                    s.EndPeriod = DateOnly.FromDateTime(DateTime.Now);
+                    s.EvaluationResults = new Dictionary<DateOnly, double>();
+                    s.LearningHistory = new Dictionary<long, string>();
+
+                    DatabaseHelper.AddStudent(s);
+                    Console.WriteLine("Student saved! Press Enter...");
+                    Console.ReadLine();
+                    break;
+
+                case "2":
+                    Console.Write("ID: ");
+                    long id = long.Parse((Console.ReadLine() ?? "0"));
+
+                    var found = DatabaseHelper.GetStudent(id);
+                    if (found == null)
+                    {
+                        Console.WriteLine("Not found.");
+                    } else
+                    {
+                        Console.WriteLine($"\nName: {found.Name}");
+                        Console.WriteLine($"\nID: {found.Id}");
+                        Console.WriteLine($"\nGoal: {found.CurrentGoal}");
+                        Console.WriteLine($"\nLevel: {found.CurrentLevel}");
+                        Console.WriteLine($"\nStart date: {found.StartDate}");
+                    }
+                    Console.WriteLine("\nPress Enter...");
+                    Console.ReadLine();
+                    break;
+                case "3":
+                    var all = DatabaseHelper.GetAllStudents();
+                    if (all.Count == 0)
+                    {
+                        Console.WriteLine("There are no students");
+                    }
+                    else
+                    {
+                        Console.WriteLine($"\n{"ID", -10} {"Name", -20} {"Level", -15} {"Lessons", -10}");
+                        Console.WriteLine(new string('-', 55));
+                        foreach (var st in all)
+                        {
+                            Console.WriteLine($"{st.Id, -10} {st.Name, -20} {st.CurrentLevel, -15} {st.LessonCount, -10}");
+                        }
+                    }
+                    Console.WriteLine("\nPress Enter...");
+                    Console.ReadLine();
+                    break;
+
+                case "0":
+                    running = false;
+                    break;
+            }
+        }
     }
 }

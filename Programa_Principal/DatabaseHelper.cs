@@ -179,4 +179,135 @@ public static class DatabaseHelper
 
     }
 
+    public static List<Student> GetAllStudents()
+    {
+        using var connection = new SqliteConnection(ConnectionString);
+        connection.Open();
+
+        var command = connection.CreateCommand();
+        command.CommandText = "SELECT * FROM Students;";
+
+        var students = new List<Student>();
+        using var reader = command.ExecuteReader();
+
+        while (reader.Read())
+        {
+            var student = new Student();
+            student.Id = reader.GetInt64(reader.GetOrdinal("Id"));
+            student.Name = reader.GetString(reader.GetOrdinal("Name"));
+            student.CurrentGoal = reader.GetString(reader.GetOrdinal("CurrentGoal"));
+            student.StartDate = DateOnly.Parse(reader.GetString(reader.GetOrdinal("StartDate")));
+            student.BeginPeriod = DateOnly.Parse(reader.GetString(reader.GetOrdinal("BeginPeriod")));
+            student.EndPeriod = DateOnly.Parse(reader.GetString(reader.GetOrdinal("EndPeriod")));
+            student.CurrentLevel = reader.GetString(reader.GetOrdinal("CurrentLevel"));
+            student.LessonCount = reader.GetDouble(reader.GetOrdinal("LessonCount"));
+            student.HasHomework = reader.GetInt32(reader.GetOrdinal("HasHomework")) == 1;
+            student.HomeworkSent = reader.GetInt32(reader.GetOrdinal("HomeworkSent")) == 1;
+            student.ReviewPending = reader.GetInt32(reader.GetOrdinal("ReviewPending")) == 1;
+            student.ReviewReceived = reader.GetInt32(reader.GetOrdinal("ReviewReceived")) == 1;
+            student.EvaluationPending = reader.GetInt32(reader.GetOrdinal("EvaluationPending")) == 1;
+            student.EvaluationTaken = reader.GetInt32(reader.GetOrdinal("EvaluationTaken")) == 1;
+            student.EvaluationAverage = reader.GetDouble(reader.GetOrdinal("EvaluationAverage"));
+            student.EvaluationResults = new Dictionary<DateOnly, double>();
+            student.LearningHistory = new Dictionary<long, string>();
+
+            students.Add(student);
+        }
+        return students;
+    }
+
+    public static void IncrementLessonCount(long studentId, double amount)
+    {
+        using var connection = new SqliteConnection(ConnectionString);
+        connection.Open();
+
+        var command = connection.CreateCommand();
+        command.CommandText = @"
+            UPDATE Students
+            SET LessonCount = LessonCount + $amount
+            WHERE Id = $id;";
+        command.Parameters.AddWithValue("$amount", amount);
+        command.Parameters.AddWithValue("$id", studentId);
+        command.ExecuteNonQuery();
+    }
+
+    public static void UpdateHomeworkStatus(long studentId, bool hasHomework, bool homeworkSent)
+    {
+        using var connection = new SqliteConnection(ConnectionString);
+        connection.Open();
+
+        var command = connection.CreateCommand();
+        command.CommandText = @"
+            UPDATE Students
+            SET HasHomework = $hw, HomeworkSent = $hwsent
+            WHERE Id = $id;";
+        command.Parameters.AddWithValue("$hw", hasHomework ? 1 : 0);
+        command.Parameters.AddWithValue("$hwsent", homeworkSent ? 1 : 0);
+        command.Parameters.AddWithValue("$id", studentId);
+        command.ExecuteNonQuery();
+    }
+
+    public static void UpdateReviewStatus(long studentId, bool reviewPending, bool reviewReceived)
+    {
+        using var connection = new SqliteConnection(ConnectionString);
+        connection.Open();
+
+        var command = connection.CreateCommand();
+        command.CommandText = @"
+            UPDATE Students
+            SET ReviewPending = $pending, ReviewReceived = $received
+            WHERE Id = $id;";
+        command.Parameters.AddWithValue("$pending", reviewPending ? 1 : 0);
+        command.Parameters.AddWithValue("$received", reviewReceived ? 1 : 0);
+        command.Parameters.AddWithValue("$id", studentId);
+        command.ExecuteNonQuery();
+    }
+    
+    public static void UpdateEvaluationStatus(long studentId, bool evaluationPending, bool evaluationTaken, double average)
+    {
+        using var connection = new SqliteConnection(ConnectionString);
+        connection.Open();
+
+        var command = connection.CreateCommand();
+        command.CommandText = @"
+            UPDATE Students
+            SET EvaluationPending = $pending, EvaluationTaken = $taken, EvaluationAverage = $avg
+            WHERE Id = $id;";
+        command.Parameters.AddWithValue("$pending", evaluationPending ? 1 : 0);
+        command.Parameters.AddWithValue("$taken", evaluationTaken ? 1 : 0);
+        command.Parameters.AddWithValue("$avg", average);
+        command.Parameters.AddWithValue("$id", studentId);
+        command.ExecuteNonQuery();
+    }
+
+    public static void AddLearningHistoryEntry(long studentId, long entryId, string description)
+    {
+        using var connection = new SqliteConnection(ConnectionString);
+        connection.Open();
+
+        var command = connection.CreateCommand();
+        command.CommandText = @"
+            INSERT INTO LearningHistory (StudentId, EntryId, Description)
+            VALUES ($sid, $entryid, $desc);";
+        command.Parameters.AddWithValue("$id", studentId);
+        command.Parameters.AddWithValue("$entryid", entryId);
+        command.Parameters.AddWithValue("$desc", description);
+        command.ExecuteNonQuery();
+    }
+
+    public static void AddEvaluationResult(long studentId, DateOnly date, double score)
+    {
+        using var connection = new SqliteConnection(ConnectionString);
+        connection.Open();
+
+        var command = connection.CreateCommand();
+        command.CommandText = @"
+            INSERT INTO EvaluationResults (StudentId, EvaluationDate, Score)
+            VALUES ($sid, $date, $score);";
+        command.Parameters.AddWithValue("$sid", studentId);
+        command.Parameters.AddWithValue("$date", date.ToString("yyyy-MM-dd"));
+        command.Parameters.AddWithValue("$score", score);
+        command.ExecuteNonQuery();
+    }
+
 }
