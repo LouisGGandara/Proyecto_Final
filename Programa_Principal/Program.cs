@@ -136,76 +136,24 @@ class Program
         {
             Console.Clear();
             Console.WriteLine("=== MENU ===");
-            Console.WriteLine("1. Add student");
-            Console.WriteLine("2. Look up student by ID");
-            Console.WriteLine("3. List all students");
-            Console.WriteLine("0. Salir");
-            Console.Write("\nOpción: ");
+            Console.WriteLine("1. Start daily session");
+            Console.WriteLine("2. Add student");
+            Console.WriteLine("3. See all students");
+            Console.WriteLine("0. Exit");
+            Console.Write("\nChoice: ");
 
             switch (Console.ReadLine())
             {
                 case "1":
-                    var s = new Student();
-
-                    Console.Write("Name: ");
-                    s.Name = Console.ReadLine() ?? "";
-
-                    Console.Write("ID: ");
-                    s.Id = long.Parse(Console.ReadLine() ?? "0");
-
-                    Console.Write("Current Objective: ");
-                    s.CurrentGoal = Console.ReadLine() ?? "";
-
-                    Console.Write("Current level: ");
-                    s.CurrentLevel = Console.ReadLine() ?? "";
-
-                    s.StartDate = DateOnly.FromDateTime(DateTime.Now);
-                    s.BeginPeriod = DateOnly.FromDateTime(DateTime.Now);
-                    s.EndPeriod = DateOnly.FromDateTime(DateTime.Now);
-                    s.EvaluationResults = new Dictionary<DateOnly, double>();
-                    s.LearningHistory = new Dictionary<long, string>();
-
-                    DatabaseHelper.AddStudent(s);
-                    Console.WriteLine("Student saved! Press Enter...");
-                    Console.ReadLine();
+                    DailySessionFlow();
                     break;
 
                 case "2":
-                    Console.Write("ID: ");
-                    long id = long.Parse((Console.ReadLine() ?? "0"));
-
-                    var found = DatabaseHelper.GetStudent(id);
-                    if (found == null)
-                    {
-                        Console.WriteLine("Not found.");
-                    } else
-                    {
-                        Console.WriteLine($"\nName: {found.Name}");
-                        Console.WriteLine($"\nID: {found.Id}");
-                        Console.WriteLine($"\nGoal: {found.CurrentGoal}");
-                        Console.WriteLine($"\nLevel: {found.CurrentLevel}");
-                        Console.WriteLine($"\nStart date: {found.StartDate}");
-                    }
-                    Console.WriteLine("\nPress Enter...");
-                    Console.ReadLine();
+                    AddStudentFlow();
                     break;
+
                 case "3":
-                    var all = DatabaseHelper.GetAllStudents();
-                    if (all.Count == 0)
-                    {
-                        Console.WriteLine("There are no students");
-                    }
-                    else
-                    {
-                        Console.WriteLine($"\n{"ID", -10} {"Name", -20} {"Level", -15} {"Lessons", -10}");
-                        Console.WriteLine(new string('-', 55));
-                        foreach (var st in all)
-                        {
-                            Console.WriteLine($"{st.Id, -10} {st.Name, -20} {st.CurrentLevel, -15} {st.LessonCount, -10}");
-                        }
-                    }
-                    Console.WriteLine("\nPress Enter...");
-                    Console.ReadLine();
+                    ListStudentsFlow();
                     break;
 
                 case "0":
@@ -213,5 +161,186 @@ class Program
                     break;
             }
         }
+    }
+
+    static void DailySessionFlow()
+    {
+        Console.Clear();
+        Console.WriteLine("=== DAILY SESSION ===\n");
+
+        var students = DatabaseHelper.GetAllStudents();
+        if (students.Count == 0)
+        {
+            Console.WriteLine("There are no students registered. Press Enter...");
+            Console.ReadLine();
+            return;
+        }
+
+        // Esta parte muestra los estudiantes
+        Console.WriteLine($"{"ID", -10} {"Name", -20} {"Level", -15} {"Lesson Count", -10}");
+        Console.WriteLine(new string('-', 55));
+        foreach (var st in students)
+        {
+            Console.WriteLine($"{st.Id, -10} {st.Name, -20} {st.CurrentLevel, -15} {st.LessonCount, -10}");
+        }
+
+        Console.WriteLine("\nStudent ID (press 0 to cancel): ");
+        long id = long.Parse(Console.ReadLine() ?? "0");
+        if (id == 0)
+        {
+            return;
+        }
+
+        var student = DatabaseHelper.GetStudent(id);
+        if (student == null)
+        {
+            Console.WriteLine("Student not found. Press Enter...");
+            Console.ReadLine();
+            return;
+        }
+        StudentSessionMenu(student);
+    }
+
+    static void StudentSessionMenu(Student s)
+    {
+        bool sessionRunning = true;
+        while (sessionRunning)
+        {
+            Console.Clear();
+            Console.WriteLine($"=== {s.Name.ToUpper()} ===");
+            Console.WriteLine($"Level: {s.CurrentLevel} | Lesson Count: {s.LessonCount} | Average: {s.EvaluationAverage:F2}");
+            Console.WriteLine($"Has homework: {(s.HasHomework ? "Yes" : "No")} | Homework sent: {(s.HomeworkSent ? "Yes" : "No")}");
+            Console.WriteLine($"Review pending: {(s.ReviewPending ? "Yes" : "No")} | Review received: {(s.ReviewReceived ? "Yes" : "No")}");
+            Console.WriteLine($"Evaluation pending: {(s.EvaluationPending ? "Yes" : "No")} | Evaluation taken: {(s.EvaluationTaken ? "Yes" : "No")}");
+            Console.WriteLine();
+            Console.WriteLine("1. Register lesson (1 or 0.5)");
+            Console.WriteLine("2. Update homework status");
+            Console.WriteLine("3. Update review status");
+            Console.WriteLine("4. Update evaluation status");
+            Console.WriteLine("5. Add entry to learning history");
+            Console.WriteLine("0. Go back");
+            Console.Write("\nChoice: ");
+
+            switch (Console.ReadLine())
+            {
+                case "1":
+                    Console.WriteLine("Full or half lesson? (1 / 0.5): ");
+                    if (double.TryParse(Console.ReadLine(), out double amount))
+                    {
+                        DatabaseHelper.IncrementLessonCount(s.Id, amount);
+                        s.LessonCount += amount;
+                        Console.WriteLine("Lesson registered. Press Enter...");
+                    }
+                    else
+                    {
+                        Console.WriteLine("Invalid. Press Enter...");
+                    }
+                    Console.ReadLine();
+                    break;
+                case "2":
+                    Console.Write("Do they have homework? (y/n): ");
+                    bool hw = Console.ReadLine()?.ToLower() == "y";
+                    Console.Write("Has the homework been sent? (y/n): ");
+                    bool hwSent = Console.ReadLine()?.ToLower() == "y";
+                    DatabaseHelper.UpdateHomeworkStatus(s.Id, hw, hwSent);
+                    s.HasHomework = hw;
+                    s.HomeworkSent = hwSent;
+                    Console.WriteLine("Updated. Press Enter...");
+                    Console.ReadLine();
+                    break;
+                case "3":
+                    Console.Write("Do they have a review pending to receive? (y/n): ");
+                    bool revPending = Console.ReadLine()?.ToLower() == "y";
+                    Console.Write("Have they received their review? (y/n): ");
+                    bool revReceived = Console.ReadLine()?.ToLower() == "y";
+                    DatabaseHelper.UpdateReviewStatus(s.Id, revPending, revReceived);
+                    s.ReviewPending = revPending;
+                    s.ReviewReceived = revReceived;
+                    Console.WriteLine("Updated. Press Enter...");
+                    Console.ReadLine();
+                    break;
+                case "4":
+                    Console.Write("Do they have a pending evaluation? (y/n): ");
+                    bool evalPending = Console.ReadLine()?.ToLower()== "y";
+                    Console.Write("Have they taken their evaluation? (y/n): ");
+                    bool evalTaken = Console.ReadLine()?.ToLower()== "y";
+                    Console.Write("Current average: ");
+                    double.TryParse(Console.ReadLine(), out double avg);
+                    DatabaseHelper.UpdateEvaluationStatus(s.Id, evalPending, evalTaken, avg);
+                    s.EvaluationPending = evalPending;
+                    s.EvaluationTaken = evalTaken;
+                    s.EvaluationAverage = avg;
+                    Console.WriteLine("Updated. Press Enter...");
+                    Console.ReadLine();
+                    break;
+                case "5":
+                    Console.Write("Entry number: ");
+                    long.TryParse(Console.ReadLine(), out long entryId);
+                    Console.Write("Description: ");
+                    string desc = Console.ReadLine() ?? "";
+                    DatabaseHelper.AddLearningHistoryEntry(s.Id, entryId, desc);
+                    Console.WriteLine("Entry added. Press Enter...");
+                    Console.ReadLine();
+                    break;
+                case "0":
+                    sessionRunning = false;
+                    break;
+                default:
+                    break;
+            }
+        }
+    }
+
+    static void AddStudentFlow()
+    {
+        Console.Clear();
+        Console.WriteLine("=== ADD STUDENT ===\n");
+
+        var s = new Student();
+
+        Console.Write("Name: ");
+        s.Name = Console.ReadLine() ?? "";
+
+        Console.Write("ID: ");
+        s.Id = long.Parse(Console.ReadLine() ?? "0");
+
+        Console.Write("Current goal: ");
+        s.CurrentGoal = Console.ReadLine() ?? "";
+
+        Console.Write("Current level: ");
+        s.CurrentLevel = Console.ReadLine() ?? "";
+
+        s.StartDate = DateOnly.FromDateTime(DateTime.Now);
+        s.BeginPeriod = DateOnly.FromDateTime(DateTime.Now);
+        s.EndPeriod = DateOnly.FromDateTime(DateTime.Now);
+        s.EvaluationResults = new Dictionary<DateOnly, double>();
+        s.LearningHistory = new Dictionary<long, string>();
+
+        DatabaseHelper.AddStudent(s);
+        Console.WriteLine("\nStudent added. Press Enter...");
+        Console.ReadLine();
+    }
+
+    static void ListStudentsFlow()
+    {
+        Console.Clear();
+        Console.WriteLine("=== ALL STUDENTS ===\n");
+
+        var all = DatabaseHelper.GetAllStudents();
+        if (all.Count == 0)
+        {
+            Console.WriteLine("There are no students.");
+        }
+        else
+        {
+            Console.WriteLine($"{"ID", -10} {"Name", -20} {"Level", -15} {"Lesson Count", -10}");
+            Console.WriteLine(new string('-', 55));
+            foreach (var st in all)
+            {
+                Console.WriteLine($"{st.Id, -10} {st.Name, -20} {st.CurrentLevel, -15} {st.LessonCount, -10}");
+            }
+        }
+        Console.WriteLine("\nPress Enter...");
+        Console.ReadLine();
     }
 }
