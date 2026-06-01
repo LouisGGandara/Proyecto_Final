@@ -30,18 +30,20 @@ public static class DatabaseHelper
             );
 
             CREATE TABLE IF NOT EXISTS EvaluationResults (
+                Id INTEGER PRIMARY KEY AUTOINCREMENT,
                 StudentId INTEGER,
                 EvaluationDate TEXT,
                 Score REAL,
-                PRIMARY KEY (StudentId, EvaluationDate),
+                BeginPeriod TEXT,
+                EndPeriod TEXT,
                 FOREIGN KEY (StudentId) REFERENCES Students(Id)
             );
 
             CREATE TABLE IF NOT EXISTS LearningHistory (
+                Id INTEGER PRIMARY KEY AUTOINCREMENT,
                 StudentId INTEGER,
                 EntryId INTEGER,
                 Description TEXT,
-                PRIMARY KEY (StudentId, EntryId),
                 FOREIGN KEY (StudentId) REFERENCES Students(Id)
             );";
 
@@ -90,11 +92,13 @@ public static class DatabaseHelper
             {
                 var evalCmd = connection.CreateCommand();
                 evalCmd.CommandText = @"
-                    INSERT INTO EvaluationResults (StudentId, EvaluationDate, Score)
-                    VALUES($sid, $date, $score);";
+                    INSERT INTO EvaluationResults (StudentId, EvaluationDate, Score, BeginPeriod, EndPeriod)
+                    VALUES($sid, $date, $score, $begin, $end);";
                 evalCmd.Parameters.AddWithValue("$sid", s.Id);
-                evalCmd.Parameters.AddWithValue("$date", entry.Key.ToString("yyyy-MM-dd"));
-                evalCmd.Parameters.AddWithValue("$score", entry.Value);
+                evalCmd.Parameters.AddWithValue("$date", entry.EvaluationDate.ToString("yyyy-MM-dd"));
+                evalCmd.Parameters.AddWithValue("$score", entry.Score);
+                evalCmd.Parameters.AddWithValue("$begin", entry.BeginPeriod.ToString("yyyy-MM-dd"));
+                evalCmd.Parameters.AddWithValue("$end", entry.EndPeriod.ToString("yyyy-MM-dd"));
                 evalCmd.ExecuteNonQuery();
             }
         }
@@ -106,11 +110,10 @@ public static class DatabaseHelper
             {
                 var histCmd = connection.CreateCommand();
                 histCmd.CommandText = @"
-                    INSERT INTO LearningHistory (StudentId, EntryId, Description)
-                    VALUES ($sid, $entryid, $desc);";
+                    INSERT INTO LearningHistory (StudentId, Description)
+                    VALUES ($sid, $desc);";
                 histCmd.Parameters.AddWithValue("$sid", s.Id);
-                histCmd.Parameters.AddWithValue("$entryid", entry.Key);
-                histCmd.Parameters.AddWithValue("$desc", entry.Value);
+                histCmd.Parameters.AddWithValue("$desc", entry);
                 histCmd.ExecuteNonQuery();
             }
         }
@@ -152,13 +155,17 @@ public static class DatabaseHelper
         evalCmd.CommandText = "SELECT * FROM EvaluationResults WHERE StudentId = $id;";
         evalCmd.Parameters.AddWithValue("$id", id);
 
-        student.EvaluationResults = new Dictionary<DateOnly, double>();
+        student.EvaluationResults = new List<EvaluationResult>();
         using var evalReader = evalCmd.ExecuteReader();
         while (evalReader.Read())
         {
-            var date = DateOnly.Parse(evalReader.GetString(evalReader.GetOrdinal("EvaluationDate")));
-            var score = evalReader.GetDouble(evalReader.GetOrdinal("Score"));
-            student.EvaluationResults[date] = score;
+            student.EvaluationResults.Add(new EvaluationResult
+            {
+                EvaluationDate = DateOnly.Parse(evalReader.GetString(evalReader.GetOrdinal("EvaluationDate"))),
+                Score = evalReader.GetDouble(evalReader.GetOrdinal("Score")),
+                BeginPeriod = DateOnly.Parse(evalReader.GetString(evalReader.GetOrdinal("BeginPeriod"))),
+                EndPeriod = DateOnly.Parse(evalReader.GetString(evalReader.GetOrdinal("EndPeriod")))
+            });
         }
 
         // Esto trae la historia del aprendizaje
@@ -166,13 +173,11 @@ public static class DatabaseHelper
         histCmd.CommandText = "SELECT * FROM LearningHistory WHERE StudentId = $id;";
         histCmd.Parameters.AddWithValue("$id", id);
 
-        student.LearningHistory = new Dictionary<long, string>();
+        student.LearningHistory = new List<string>();
         using var histReader = histCmd.ExecuteReader();
         while (histReader.Read())
         {
-            var entryId = histReader.GetInt64(histReader.GetOrdinal("EntryId"));
-            var desc = histReader.GetString(histReader.GetOrdinal("Description"));
-            student.LearningHistory[entryId] = desc;
+            student.LearningHistory.Add(histReader.GetString(histReader.GetOrdinal("Description")));
         }
 
         return student;
@@ -208,8 +213,8 @@ public static class DatabaseHelper
             student.EvaluationPending = reader.GetInt32(reader.GetOrdinal("EvaluationPending")) == 1;
             student.EvaluationTaken = reader.GetInt32(reader.GetOrdinal("EvaluationTaken")) == 1;
             student.EvaluationAverage = reader.GetDouble(reader.GetOrdinal("EvaluationAverage"));
-            student.EvaluationResults = new Dictionary<DateOnly, double>();
-            student.LearningHistory = new Dictionary<long, string>();
+            student.EvaluationResults = new List<EvaluationResult>();
+            student.LearningHistory = new List<string>();
 
             students.Add(student);
         }
@@ -280,34 +285,88 @@ public static class DatabaseHelper
         command.ExecuteNonQuery();
     }
 
-    public static void AddLearningHistoryEntry(long studentId, long entryId, string description)
+    public static void AddLearningHistoryEntry(long studentId, string description)
     {
         using var connection = new SqliteConnection(ConnectionString);
         connection.Open();
 
         var command = connection.CreateCommand();
         command.CommandText = @"
-            INSERT INTO LearningHistory (StudentId, EntryId, Description)
-            VALUES ($sid, $entryid, $desc);";
-        command.Parameters.AddWithValue("$id", studentId);
-        command.Parameters.AddWithValue("$entryid", entryId);
+            INSERT INTO LearningHistory (StudentId, Description)
+            VALUES ($sid, $desc);";
+        command.Parameters.AddWithValue("$sid", studentId);
         command.Parameters.AddWithValue("$desc", description);
         command.ExecuteNonQuery();
     }
 
-    public static void AddEvaluationResult(long studentId, DateOnly date, double score)
+    public static void AddEvaluationResult(long studentId, EvaluationResult result)
     {
         using var connection = new SqliteConnection(ConnectionString);
         connection.Open();
 
         var command = connection.CreateCommand();
         command.CommandText = @"
-            INSERT INTO EvaluationResults (StudentId, EvaluationDate, Score)
-            VALUES ($sid, $date, $score);";
+        INSERT INTO EvaluationResults (StudentId, EvaluationDate, Score, BeginPeriod, EndPeriod)
+        VALUES ($sid, $date, $score, $begin, $end);";
         command.Parameters.AddWithValue("$sid", studentId);
-        command.Parameters.AddWithValue("$date", date.ToString("yyyy-MM-dd"));
-        command.Parameters.AddWithValue("$score", score);
+        command.Parameters.AddWithValue("$date", result.EvaluationDate.ToString("yyyy-MM-dd"));
+        command.Parameters.AddWithValue("$score", result.Score);
+        command.Parameters.AddWithValue("$begin", result.BeginPeriod.ToString("yyyy-MM-dd"));
+        command.Parameters.AddWithValue("$end", result.EndPeriod.ToString("yyyy-MM-dd"));
         command.ExecuteNonQuery();
     }
 
+    public static void UpdateBeginPeriod(long studentId, DateOnly date)
+    {
+        using var connection = new SqliteConnection(ConnectionString);
+        connection.Open();
+
+        var command = connection.CreateCommand();
+        command.CommandText = @"
+        UPDATE Students 
+        SET BeginPeriod = $date 
+        WHERE Id = $id;";
+        command.Parameters.AddWithValue("$date", date.ToString("yyyy-MM-dd"));
+        command.Parameters.AddWithValue("$id", studentId);
+        command.ExecuteNonQuery();
+    }
+
+    public static void UpdateEndPeriod(long studentId, DateOnly date)
+    {
+        using var connection = new SqliteConnection(ConnectionString);
+        connection.Open();
+
+        var command = connection.CreateCommand();
+        command.CommandText = @"
+        UPDATE Students 
+        SET EndPeriod = $date 
+        WHERE Id = $id;";
+        command.Parameters.AddWithValue("$date", date.ToString("yyyy-MM-dd"));
+        command.Parameters.AddWithValue("$id", studentId);
+        command.ExecuteNonQuery();
+    }
+
+    public static List<EvaluationResult> GetEvaluationResults(long studentId)
+    {
+        using var connection = new SqliteConnection(ConnectionString);
+        connection.Open();
+
+        var command = connection.CreateCommand();
+        command.CommandText = "SELECT * FROM EvaluationResults WHERE StudentId = $id;";
+        command.Parameters.AddWithValue("$id", studentId);
+
+        var results = new List<EvaluationResult>();
+        using var reader = command.ExecuteReader();
+        while (reader.Read())
+        {
+            results.Add(new EvaluationResult
+            {
+                EvaluationDate = DateOnly.Parse(reader.GetString(reader.GetOrdinal("EvaluationDate"))),
+                Score = reader.GetDouble(reader.GetOrdinal("Score")),
+                BeginPeriod = DateOnly.Parse(reader.GetString(reader.GetOrdinal("BeginPeriod"))),
+                EndPeriod = DateOnly.Parse(reader.GetString(reader.GetOrdinal("EndPeriod")))
+            });
+        }
+        return results;
+    }
 }

@@ -3,13 +3,13 @@ using System.Runtime.CompilerServices;
 
 public class Student // clase principal
 {
-    private string name;
+    private string name = "";
     private long id;
-    private string currentGoal;
+    private string currentGoal = "";
     private DateOnly startDate;
     private DateOnly beginPeriod;
     private DateOnly endPeriod;
-    private string currentLevel;
+    private string currentLevel = "";
     private double lessonCount;
     private bool hasHomework;
     private bool homeworkSent;
@@ -17,9 +17,9 @@ public class Student // clase principal
     private bool reviewReceived;
     private bool evaluationPending;
     private bool evaluationTaken;
-    private Dictionary<DateOnly, double> evaluationResults;
+    private List<EvaluationResult> evaluationResults = new();
     private double evaluationAverage;
-    private Dictionary<long, string> learningHistory;
+    private List<string> learningHistory = new();
 
     public string Name
     {
@@ -105,7 +105,7 @@ public class Student // clase principal
         set { evaluationTaken = value; }
     }
 
-    public Dictionary<DateOnly, double> EvaluationResults { 
+    public List<EvaluationResult> EvaluationResults { 
         get { return evaluationResults; } 
         set { evaluationResults = value; }
     }
@@ -116,13 +116,43 @@ public class Student // clase principal
         set {  evaluationAverage = value; }
     }
 
-    public Dictionary<long, string> LearningHistory 
+    public List<string> LearningHistory 
     { 
         get { return learningHistory; }  
         set { learningHistory = value; } 
     }
+}
 
-    // TODO: Add relevant functions
+public class EvaluationResult
+{
+    private DateOnly evaluationDate;
+    private double score;
+    private DateOnly beginPeriod;
+    private DateOnly endPeriod;
+
+    public DateOnly EvaluationDate
+    {
+        get { return evaluationDate; }
+        set { evaluationDate = value; }
+    }
+
+    public double Score
+    {
+        get { return score; }
+        set { score = value; }
+    }
+
+    public DateOnly BeginPeriod
+    {
+        get { return beginPeriod; }
+        set { beginPeriod = value; }
+    }
+
+    public DateOnly EndPeriod
+    {
+        get { return endPeriod; }
+        set { endPeriod = value; }
+    }
 }
 
 class Program
@@ -254,31 +284,66 @@ class Program
                     Console.Write("Have they received their review? (y/n): ");
                     bool revReceived = Console.ReadLine()?.ToLower() == "y";
                     DatabaseHelper.UpdateReviewStatus(s.Id, revPending, revReceived);
+                    if (revPending)
+                    {
+                        DatabaseHelper.UpdateEndPeriod(s.Id, DateOnly.FromDateTime(DateTime.Now));
+                    }
                     s.ReviewPending = revPending;
                     s.ReviewReceived = revReceived;
                     Console.WriteLine("Updated. Press Enter...");
                     Console.ReadLine();
                     break;
                 case "4":
-                    Console.Write("Do they have a pending evaluation? (y/n): ");
-                    bool evalPending = Console.ReadLine()?.ToLower()== "y";
-                    Console.Write("Have they taken their evaluation? (y/n): ");
-                    bool evalTaken = Console.ReadLine()?.ToLower()== "y";
-                    Console.Write("Current average: ");
-                    double.TryParse(Console.ReadLine(), out double avg);
-                    DatabaseHelper.UpdateEvaluationStatus(s.Id, evalPending, evalTaken, avg);
-                    s.EvaluationPending = evalPending;
-                    s.EvaluationTaken = evalTaken;
-                    s.EvaluationAverage = avg;
-                    Console.WriteLine("Updated. Press Enter...");
+                    Console.Write("¿Evaluación pendiente? (s/n): ");
+                    bool evalPending = Console.ReadLine()?.ToLower() == "s";
+                    Console.Write("¿Evaluación tomada? (s/n): ");
+                    bool evalTaken = Console.ReadLine()?.ToLower() == "s";
+
+                    if (evalTaken)
+                    {
+                        Console.Write("Nota de esta evaluación: ");
+                        double.TryParse(Console.ReadLine(), out double score);
+
+                        // Esto guarda el resultado con el periodo actual
+                        var result = new EvaluationResult
+                        {
+                            EvaluationDate = DateOnly.FromDateTime(DateTime.Now),
+                            Score = score,
+                            BeginPeriod = s.BeginPeriod,
+                            EndPeriod = s.EndPeriod
+                        };
+                        DatabaseHelper.AddEvaluationResult(s.Id, result);
+
+                        // Esto hace el promedio
+                        var allResults = DatabaseHelper.GetEvaluationResults(s.Id);
+                        double avg = allResults.Sum(r => r.Score) / allResults.Count;
+
+                        // Esto guarda todo
+                        DatabaseHelper.UpdateEvaluationStatus(s.Id, evalPending, evalTaken, avg);
+                        DatabaseHelper.UpdateBeginPeriod(s.Id, DateOnly.FromDateTime(DateTime.Now));
+
+                        s.EvaluationPending = evalPending;
+                        s.EvaluationTaken = evalTaken;
+                        s.EvaluationAverage = avg;
+                        s.BeginPeriod = DateOnly.FromDateTime(DateTime.Now);
+
+                        Console.WriteLine($"Score registered. New average: {avg:F2}");
+                    }
+                    else
+                    {
+                        DatabaseHelper.UpdateEvaluationStatus(s.Id, evalPending, evalTaken, s.EvaluationAverage);
+                        s.EvaluationPending = evalPending;
+                        s.EvaluationTaken = evalTaken;
+                        Console.WriteLine("Updated.");
+                    }
+
+                    Console.WriteLine("Press Enter...");
                     Console.ReadLine();
                     break;
                 case "5":
-                    Console.Write("Entry number: ");
-                    long.TryParse(Console.ReadLine(), out long entryId);
                     Console.Write("Description: ");
                     string desc = Console.ReadLine() ?? "";
-                    DatabaseHelper.AddLearningHistoryEntry(s.Id, entryId, desc);
+                    DatabaseHelper.AddLearningHistoryEntry(s.Id, desc);
                     Console.WriteLine("Entry added. Press Enter...");
                     Console.ReadLine();
                     break;
@@ -313,10 +378,11 @@ class Program
         s.StartDate = DateOnly.FromDateTime(DateTime.Now);
         s.BeginPeriod = DateOnly.FromDateTime(DateTime.Now);
         s.EndPeriod = DateOnly.FromDateTime(DateTime.Now);
-        s.EvaluationResults = new Dictionary<DateOnly, double>();
-        s.LearningHistory = new Dictionary<long, string>();
+        s.EvaluationResults = new List<EvaluationResult>();
+        s.LearningHistory = new List<string>();
 
         DatabaseHelper.AddStudent(s);
+        DatabaseHelper.UpdateBeginPeriod(s.Id, DateOnly.FromDateTime(DateTime.Now));
         Console.WriteLine("\nStudent added. Press Enter...");
         Console.ReadLine();
     }
