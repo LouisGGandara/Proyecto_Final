@@ -165,10 +165,13 @@ class Program
         while (running)
         {
             Console.Clear();
-            Console.WriteLine("=== MENU ===");
+            Console.WriteLine("=== MAIN MENU ===");
             Console.WriteLine("1. Start daily session");
             Console.WriteLine("2. Add student");
-            Console.WriteLine("3. See all students");
+            Console.WriteLine("3. View all students");
+            Console.WriteLine("4. Archive student");
+            Console.WriteLine("5. View archived students");
+            Console.WriteLine("6. Update student info");
             Console.WriteLine("0. Exit");
             Console.Write("\nChoice: ");
 
@@ -185,7 +188,15 @@ class Program
                 case "3":
                     ListStudentsFlow();
                     break;
-
+                case "4": 
+                    ArchiveStudentFlow(); 
+                    break;
+                case "5": 
+                    ArchivedStudentsFlow(); 
+                    break;
+                case "6": 
+                    UpdateBasicInfoFlow();
+                    break;
                 case "0":
                     running = false;
                     break;
@@ -249,6 +260,8 @@ class Program
             Console.WriteLine("4. Update evaluation status");
             Console.WriteLine("5. Add entry to learning history");
             Console.WriteLine("0. Go back");
+            Console.WriteLine("6. View learning history");
+            Console.WriteLine("7. View evaluation results");
             Console.Write("\nChoice: ");
 
             switch (Console.ReadLine())
@@ -347,6 +360,36 @@ class Program
                     Console.WriteLine("Entry added. Press Enter...");
                     Console.ReadLine();
                     break;
+                case "6":
+                    Console.Clear();
+                    Console.WriteLine($"=== LEARNING HISTORY: {s.Name.ToUpper()} ===\n");
+                    var history = DatabaseHelper.GetStudent(s.Id)?.LearningHistory;
+                    if (history == null || history.Count == 0)
+                        Console.WriteLine("No entries yet.");
+                    else
+                        foreach (var entry in history)
+                            Console.WriteLine($"- {entry}");
+                    Console.WriteLine("\nPress Enter...");
+                    Console.ReadLine();
+                    break;
+
+                case "7":
+                    Console.Clear();
+                    Console.WriteLine($"=== EVALUATION RESULTS: {s.Name.ToUpper()} ===\n");
+                    var results = DatabaseHelper.GetEvaluationResults(s.Id);
+                    if (results.Count == 0)
+                        Console.WriteLine("No evaluations yet.");
+                    else
+                    {
+                        Console.WriteLine($"{"Date",-15} {"Score",-10} {"Period Start",-15} {"Period End",-15}");
+                        Console.WriteLine(new string('-', 55));
+                        foreach (var r in results)
+                            Console.WriteLine($"{r.EvaluationDate,-15} {r.Score,-10:F2} {r.BeginPeriod,-15} {r.EndPeriod,-15}");
+                        Console.WriteLine($"\nCurrent Average: {s.EvaluationAverage:F2}");
+                    }
+                    Console.WriteLine("\nPress Enter...");
+                    Console.ReadLine();
+                    break;
                 case "0":
                     sessionRunning = false;
                     break;
@@ -407,6 +450,127 @@ class Program
             }
         }
         Console.WriteLine("\nPress Enter...");
+        Console.ReadLine();
+    }
+
+    static void ArchiveStudentFlow()
+    {
+        Console.Clear();
+        Console.WriteLine("=== ARCHIVE STUDENT ===\n");
+
+        var students = DatabaseHelper.GetAllStudents();
+        if (students.Count == 0)
+        {
+            Console.WriteLine("No active students. Press Enter...");
+            Console.ReadLine();
+            return;
+        }
+
+        Console.WriteLine($"{"ID",-10} {"Name",-20} {"Level",-15}");
+        Console.WriteLine(new string('-', 45));
+        foreach (var st in students)
+            Console.WriteLine($"{st.Id,-10} {st.Name,-20} {st.CurrentLevel,-15}");
+
+        Console.Write("\nStudent ID to archive (0 to cancel): ");
+        long id = long.Parse(Console.ReadLine() ?? "0");
+        if (id == 0) return;
+
+        var student = DatabaseHelper.GetStudent(id);
+        if (student == null)
+        {
+            Console.WriteLine("Student not found. Press Enter...");
+            Console.ReadLine();
+            return;
+        }
+
+        Console.Write($"Archive {student.Name}? (y/n): ");
+        if (Console.ReadLine()?.ToLower() != "y") return;
+
+        DatabaseHelper.ArchiveStudent(id);
+        Console.WriteLine($"{student.Name} archived. Press Enter...");
+        Console.ReadLine();
+    }
+
+    static void ArchivedStudentsFlow()
+    {
+        Console.Clear();
+        Console.WriteLine("=== ARCHIVED STUDENTS ===\n");
+
+        var students = DatabaseHelper.GetArchivedStudents();
+        if (students.Count == 0)
+        {
+            Console.WriteLine("No archived students. Press Enter...");
+            Console.ReadLine();
+            return;
+        }
+
+        Console.WriteLine($"{"ID",-10} {"Name",-20} {"Level",-15}");
+        Console.WriteLine(new string('-', 45));
+        foreach (var st in students)
+            Console.WriteLine($"{st.Id,-10} {st.Name,-20} {st.CurrentLevel,-15}");
+
+        Console.Write("\nEnter ID to reactivate (0 to cancel): ");
+        long id = long.Parse(Console.ReadLine() ?? "0");
+        if (id == 0) return;
+
+        var student = DatabaseHelper.GetStudent(id);
+        if (student == null)
+        {
+            Console.WriteLine("Student not found. Press Enter...");
+            Console.ReadLine();
+            return;
+        }
+
+        Console.Write($"Reactivate {student.Name}? (y/n): ");
+        if (Console.ReadLine()?.ToLower() != "y") return;
+
+        DatabaseHelper.UnarchiveStudent(id);
+        Console.WriteLine($"{student.Name} reactivated. Press Enter...");
+        Console.ReadLine();
+    }
+
+    static void UpdateBasicInfoFlow()
+    {
+        Console.Clear();
+        Console.WriteLine("=== UPDATE STUDENT INFO ===\n");
+
+        var students = DatabaseHelper.GetAllStudents();
+        if (students.Count == 0)
+        {
+            Console.WriteLine("No active students. Press Enter...");
+            Console.ReadLine();
+            return;
+        }
+
+        Console.WriteLine($"{"ID",-10} {"Name",-20} {"Goal",-20} {"Level",-15}");
+        Console.WriteLine(new string('-', 65));
+        foreach (var st in students)
+            Console.WriteLine($"{st.Id,-10} {st.Name,-20} {st.CurrentGoal,-20} {st.CurrentLevel,-15}");
+
+        Console.Write("\nStudent ID (0 to cancel): ");
+        long id = long.Parse(Console.ReadLine() ?? "0");
+        if (id == 0) return;
+
+        var student = DatabaseHelper.GetStudent(id);
+        if (student == null)
+        {
+            Console.WriteLine("Student not found. Press Enter...");
+            Console.ReadLine();
+            return;
+        }
+
+        Console.WriteLine($"\nCurrent goal: {student.CurrentGoal}");
+        Console.Write("New goal (press Enter to keep current): ");
+        string goal = Console.ReadLine() ?? "";
+        if (string.IsNullOrWhiteSpace(goal)) goal = student.CurrentGoal;
+
+        Console.WriteLine($"\nCurrent level: {student.CurrentLevel}");
+        Console.Write("New level (press Enter to keep current): ");
+        string level = Console.ReadLine() ?? "";
+        if (string.IsNullOrWhiteSpace(level)) level = student.CurrentLevel;
+
+        DatabaseHelper.UpdateBasicInfo(id, goal, level);
+        Console.WriteLine("\nUpdated. Press Enter...");
         Console.ReadLine();
     }
 }

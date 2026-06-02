@@ -26,7 +26,8 @@ public static class DatabaseHelper
                 ReviewReceived INTEGER,
                 EvaluationPending INTEGER,
                 EvaluationTaken INTEGER,
-                EvaluationAverage REAL
+                EvaluationAverage REAL,
+                IsArchived INTEGER DEFAULT 0
             );
 
             CREATE TABLE IF NOT EXISTS EvaluationResults (
@@ -190,7 +191,7 @@ public static class DatabaseHelper
         connection.Open();
 
         var command = connection.CreateCommand();
-        command.CommandText = "SELECT * FROM Students;";
+        command.CommandText = "SELECT * FROM Students WHERE IsArchived = 0;";
 
         var students = new List<Student>();
         using var reader = command.ExecuteReader();
@@ -368,5 +369,78 @@ public static class DatabaseHelper
             });
         }
         return results;
+    }
+
+    public static void ArchiveStudent(long studentId)
+    {
+        using var connection = new SqliteConnection(ConnectionString);
+        connection.Open();
+
+        var command = connection.CreateCommand();
+        command.CommandText = "UPDATE Students SET IsArchived = 1 WHERE Id = $id;";
+        command.Parameters.AddWithValue("$id", studentId);
+        command.ExecuteNonQuery();
+    }
+
+    public static void UnarchiveStudent(long studentId)
+    {
+        using var connection = new SqliteConnection(ConnectionString);
+        connection.Open();
+
+        var command = connection.CreateCommand();
+        command.CommandText = "UPDATE Students SET IsArchived = 0 WHERE Id = $id;";
+        command.Parameters.AddWithValue("$id", studentId);
+        command.ExecuteNonQuery();
+    }
+
+    public static List<Student> GetArchivedStudents()
+    {
+        using var connection = new SqliteConnection(ConnectionString);
+        connection.Open();
+
+        var command = connection.CreateCommand();
+        command.CommandText = "SELECT * FROM Students WHERE IsArchived = 1;";
+
+        var students = new List<Student>();
+        using var reader = command.ExecuteReader();
+        while (reader.Read())
+        {
+            var student = new Student();
+            student.Id = reader.GetInt64(reader.GetOrdinal("Id"));
+            student.Name = reader.GetString(reader.GetOrdinal("Name"));
+            student.CurrentGoal = reader.GetString(reader.GetOrdinal("CurrentGoal"));
+            student.StartDate = DateOnly.Parse(reader.GetString(reader.GetOrdinal("StartDate")));
+            student.BeginPeriod = DateOnly.Parse(reader.GetString(reader.GetOrdinal("BeginPeriod")));
+            student.EndPeriod = DateOnly.Parse(reader.GetString(reader.GetOrdinal("EndPeriod")));
+            student.CurrentLevel = reader.GetString(reader.GetOrdinal("CurrentLevel"));
+            student.LessonCount = reader.GetDouble(reader.GetOrdinal("LessonCount"));
+            student.HasHomework = reader.GetInt32(reader.GetOrdinal("HasHomework")) == 1;
+            student.HomeworkSent = reader.GetInt32(reader.GetOrdinal("HomeworkSent")) == 1;
+            student.ReviewPending = reader.GetInt32(reader.GetOrdinal("ReviewPending")) == 1;
+            student.ReviewReceived = reader.GetInt32(reader.GetOrdinal("ReviewReceived")) == 1;
+            student.EvaluationPending = reader.GetInt32(reader.GetOrdinal("EvaluationPending")) == 1;
+            student.EvaluationTaken = reader.GetInt32(reader.GetOrdinal("EvaluationTaken")) == 1;
+            student.EvaluationAverage = reader.GetDouble(reader.GetOrdinal("EvaluationAverage"));
+            student.EvaluationResults = new List<EvaluationResult>();
+            student.LearningHistory = new List<string>();
+            students.Add(student);
+        }
+        return students;
+    }
+
+    public static void UpdateBasicInfo(long studentId, string currentGoal, string currentLevel)
+    {
+        using var connection = new SqliteConnection(ConnectionString);
+        connection.Open();
+
+        var command = connection.CreateCommand();
+        command.CommandText = @"
+        UPDATE Students 
+        SET CurrentGoal = $goal, CurrentLevel = $level 
+        WHERE Id = $id;";
+        command.Parameters.AddWithValue("$goal", currentGoal);
+        command.Parameters.AddWithValue("$level", currentLevel);
+        command.Parameters.AddWithValue("$id", studentId);
+        command.ExecuteNonQuery();
     }
 }
