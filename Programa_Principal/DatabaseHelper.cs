@@ -72,7 +72,7 @@ public static class DatabaseHelper
         command.Parameters.AddWithValue("$id", s.Id);
         command.Parameters.AddWithValue("$name", s.Name);
         command.Parameters.AddWithValue("$goal", s.CurrentGoal ?? ""); // si CurrentGoal está nulo, se usara "", si no, se usa el valor
-        command.Parameters.AddWithValue("$start", s.StartDate.ToString("yyy-MM-dd")); // convierte la fecha a este formato. Mayúscula y minúscula importan
+        command.Parameters.AddWithValue("$start", s.StartDate.ToString("yyyy-MM-dd")); // convierte la fecha a este formato. Mayúscula y minúscula importan
         command.Parameters.AddWithValue("$begin", s.BeginPeriod.ToString("yyyy-MM-dd"));
         command.Parameters.AddWithValue("$end", s.EndPeriod.ToString("yyyy-MM-dd"));
         command.Parameters.AddWithValue("$level", s.CurrentLevel ?? "");
@@ -82,7 +82,7 @@ public static class DatabaseHelper
         command.Parameters.AddWithValue("$revpending", s.ReviewPending ? 1 : 0);
         command.Parameters.AddWithValue("$revreceived", s.ReviewReceived ? 1 : 0);
         command.Parameters.AddWithValue("$evalpending", s.EvaluationPending ? 1 : 0);
-        command.Parameters.AddWithValue("evaltaken", s.EvaluationTaken ? 1 : 0);
+        command.Parameters.AddWithValue("$evaltaken", s.EvaluationTaken ? 1 : 0);
         command.Parameters.AddWithValue("$avg", s.EvaluationAverage);
         command.ExecuteNonQuery();
 

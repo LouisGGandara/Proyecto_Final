@@ -225,8 +225,7 @@ class Program
             Console.WriteLine($"{st.Id, -10} {st.Name, -20} {st.CurrentLevel, -15} {st.LessonCount, -10}");
         }
 
-        Console.WriteLine("\nStudent ID (press 0 to cancel): ");
-        long id = long.Parse(Console.ReadLine() ?? "0");
+        long id = ReadLong("\nStudent ID (press 0 to cancel): ");
         if (id == 0)
         {
             return;
@@ -267,17 +266,19 @@ class Program
             switch (Console.ReadLine())
             {
                 case "1":
-                    Console.WriteLine("Full or half lesson? (1 / 0.5): ");
-                    if (double.TryParse(Console.ReadLine(), out double amount))
+                    double amount;
+                    while (true)
                     {
-                        DatabaseHelper.IncrementLessonCount(s.Id, amount);
-                        s.LessonCount += amount;
-                        Console.WriteLine("Lesson registered. Press Enter...");
+                        amount = ReadDouble("Full or half lesson? (1 / 0.5): ");
+                        if (amount == 1 || amount == 0.5)
+                        {
+                            break;
+                        }
+                        Console.WriteLine("Please enter 1 or 0.5.");
                     }
-                    else
-                    {
-                        Console.WriteLine("Invalid. Press Enter...");
-                    }
+                    DatabaseHelper.IncrementLessonCount(s.Id, amount);
+                    s.LessonCount += amount;
+                    Console.WriteLine("Lesson registered. Press Enter...");
                     Console.ReadLine();
                     break;
                 case "2":
@@ -307,15 +308,23 @@ class Program
                     Console.ReadLine();
                     break;
                 case "4":
-                    Console.Write("¿Evaluación pendiente? (s/n): ");
-                    bool evalPending = Console.ReadLine()?.ToLower() == "s";
-                    Console.Write("¿Evaluación tomada? (s/n): ");
-                    bool evalTaken = Console.ReadLine()?.ToLower() == "s";
+                    Console.Write("Evaluation Pending? (y/n): ");
+                    bool evalPending = Console.ReadLine()?.ToLower() == "y";
+                    Console.Write("Evaluation taken? (y/n): ");
+                    bool evalTaken = Console.ReadLine()?.ToLower() == "y";
 
                     if (evalTaken)
                     {
-                        Console.Write("Nota de esta evaluación: ");
-                        double.TryParse(Console.ReadLine(), out double score);
+                        double score;
+                        while (true)
+                        {
+                            score = ReadDouble("Score for this evaluation: ");
+                            if (score >= 0 && score <= 100)
+                            {
+                                break;
+                            }
+                            Console.WriteLine("Score must be between 0 and 100.");
+                        }
 
                         // Esto guarda el resultado con el periodo actual
                         var result = new EvaluationResult
@@ -409,14 +418,17 @@ class Program
         Console.Write("Name: ");
         s.Name = Console.ReadLine() ?? "";
 
-        Console.Write("ID: ");
-        s.Id = long.Parse(Console.ReadLine() ?? "0");
+        s.Id = ReadLong("ID: ");
+
+        if (DatabaseHelper.GetStudent(s.Id) != null)
+        {
+            Console.WriteLine("A student with that ID already exists. Press Enter...");
+            Console.ReadLine();
+            return;
+        }
 
         Console.Write("Current goal: ");
         s.CurrentGoal = Console.ReadLine() ?? "";
-
-        Console.Write("Current level: ");
-        s.CurrentLevel = Console.ReadLine() ?? "";
 
         s.StartDate = DateOnly.FromDateTime(DateTime.Now);
         s.BeginPeriod = DateOnly.FromDateTime(DateTime.Now);
@@ -471,8 +483,7 @@ class Program
         foreach (var st in students)
             Console.WriteLine($"{st.Id,-10} {st.Name,-20} {st.CurrentLevel,-15}");
 
-        Console.Write("\nStudent ID to archive (0 to cancel): ");
-        long id = long.Parse(Console.ReadLine() ?? "0");
+        long id = ReadLong("\nStudent ID to archive (0 to cancel): ");
         if (id == 0) return;
 
         var student = DatabaseHelper.GetStudent(id);
@@ -509,8 +520,7 @@ class Program
         foreach (var st in students)
             Console.WriteLine($"{st.Id,-10} {st.Name,-20} {st.CurrentLevel,-15}");
 
-        Console.Write("\nEnter ID to reactivate (0 to cancel): ");
-        long id = long.Parse(Console.ReadLine() ?? "0");
+        long id = ReadLong("\nEnter ID to reactivate (0 to cancel): ");
         if (id == 0) return;
 
         var student = DatabaseHelper.GetStudent(id);
@@ -547,8 +557,7 @@ class Program
         foreach (var st in students)
             Console.WriteLine($"{st.Id,-10} {st.Name,-20} {st.CurrentGoal,-20} {st.CurrentLevel,-15}");
 
-        Console.Write("\nStudent ID (0 to cancel): ");
-        long id = long.Parse(Console.ReadLine() ?? "0");
+        long id = ReadLong("\nStudent ID (0 to cancel): ");
         if (id == 0) return;
 
         var student = DatabaseHelper.GetStudent(id);
@@ -572,5 +581,27 @@ class Program
         DatabaseHelper.UpdateBasicInfo(id, goal, level);
         Console.WriteLine("\nUpdated. Press Enter...");
         Console.ReadLine();
+    }
+
+    static long ReadLong(string prompt)
+    {
+        while (true)
+        {
+            Console.Write(prompt);
+            if (long.TryParse(Console.ReadLine(), out long value))
+                return value;
+            Console.WriteLine("Invalid number. Try again.");
+        }
+    }
+
+    static double ReadDouble(string prompt)
+    {
+        while (true)
+        {
+            Console.Write(prompt);
+            if (double.TryParse(Console.ReadLine(), out double value))
+                return value;
+            Console.WriteLine("Invalid number. Try again.");
+        }
     }
 }
