@@ -1,7 +1,4 @@
-﻿
-using System.Runtime.CompilerServices;
-
-public class Student // clase principal
+﻿public class Student // clase principal
 {
     private string name = "";
     private long id;
@@ -159,7 +156,7 @@ class Program
 {
     static void Main()
     {
-        DatabaseHelper.Initialize(); // Added the database here. Tuve que agregar un archivo tipo class que es el dbhelper para poder inicializar la base de datos. 
+        DatabaseHelper.Initialize(); // Added the database here. Tuve que agregar un archivo con una class que es el DatabaseHelper para poder inicializar la base de datos. 
 
         bool running = true;
         while (running)
@@ -258,9 +255,9 @@ class Program
             Console.WriteLine("3. Update review status");
             Console.WriteLine("4. Update evaluation status");
             Console.WriteLine("5. Add entry to learning history");
-            Console.WriteLine("0. Go back");
             Console.WriteLine("6. View learning history");
             Console.WriteLine("7. View evaluation results");
+            Console.WriteLine("0. Go back");
             Console.Write("\nChoice: ");
 
             switch (Console.ReadLine())
@@ -495,7 +492,8 @@ class Program
         }
 
         Console.Write($"Archive {student.Name}? (y/n): ");
-        if (Console.ReadLine()?.ToLower() != "y") return;
+        if (Console.ReadLine()?.ToLower() != "y") 
+            return;
 
         DatabaseHelper.ArchiveStudent(id);
         Console.WriteLine($"{student.Name} archived. Press Enter...");
